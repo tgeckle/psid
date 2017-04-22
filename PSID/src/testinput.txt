@@ -1,0 +1,6 @@
+// SKU	Name	Description	Weight	Quantity	Value
+02546	A	B	1.1	5	25.75	
+84952	C	D	65.2	6	5.99
+54762	E	F	6.0	1	85.95
+17824	G	H	.05	9	1.25
+78920	I	J	253.0	200	347.99
