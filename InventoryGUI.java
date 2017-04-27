@@ -1,25 +1,35 @@
-
 package inventorygui;
 
 import java.awt.*;
+import java.io.*;
+import java.awt.event.*;
+import java.time.LocalDateTime;
+import java.util.*;
 import javax.swing.*;
 import javax.swing.border.*;
+import javax.swing.filechooser.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
 /**
  * Filename: InventoryGUI.java 
- * Author: Theresa Geckle / Joe Osborne
- * Date: Apr 8, 2017 / Apr 19, 2017
+ * Author: Theresa Geckle / Joe Osborne / Ryan Schwab
+ * Date: Apr 8, 2017 / Apr 19, 2017 
  * Purpose: Group Project
  */
 public class InventoryGUI extends JFrame {
+
+    private HashMap<Integer, Item> inventoryMap = new HashMap<>();
+
+    FileNameExtensionFilter filterFile = new FileNameExtensionFilter("Text Files", "txt");
 
     // Fonts
     Font labelFont = new Font("Sylfaen", Font.BOLD, 14);
     Font buttonFont = new Font("Elephant", Font.PLAIN, 14);
     // Still working on how to set the Title Font for the frame
-    Font titleFont = new Font("Bernard MT Condensed", Font.BOLD, 11);  
+    Font titleFont = new Font("Bernard MT Condensed", Font.BOLD, 11);
+    JTable displayTableGlobal;
 
     public InventoryGUI() {
 
@@ -36,6 +46,8 @@ public class InventoryGUI extends JFrame {
         JPanel inventoryManagementPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 50, 10));
 
         // Initialize Components
+        JFileChooser chooseFile = new JFileChooser();
+
         JLabel skuLabel = new JLabel("SKU:");
         skuLabel.setFont(labelFont);
         JTextField skuField = new JTextField(5);
@@ -65,28 +77,6 @@ public class InventoryGUI extends JFrame {
         JButton displayInventoryButton = new JButton("Display Inventory");
         displayInventoryButton.setFont(buttonFont);
 
-        // For the JTable
-        DefaultTableModel tableModel = new DefaultTableModel() {
-            // Setting the table column names
-            String[] columnNames = {"SKU", "Name", "Description", "Weight",
-                "Quantity", "Value"};
-
-            @Override
-            public int getColumnCount() {
-                return columnNames.length;
-            }
-
-            @Override
-            public String getColumnName(int index) {
-                return columnNames[index];
-            }
-        };
-
-        JTable displayTable = new JTable(tableModel);
-        JScrollPane displayPane = new JScrollPane(displayTable);
-        JTableHeader headerFont = displayTable.getTableHeader();
-        headerFont.setFont(new Font("Times New Roman", Font.BOLD, 12));
-
         JButton removeItemButton = new JButton("Remove Item");
         removeItemButton.setFont(buttonFont);
         JButton removeAllButton = new JButton("Remove All");
@@ -95,6 +85,136 @@ public class InventoryGUI extends JFrame {
         importButton.setFont(buttonFont);
         JButton exportButton = new JButton("Export Inventory to File");
         exportButton.setFont(buttonFont);
+
+        DefaultTableModel tableModel = new DefaultTableModel(0, 0);
+        // Setting the table column names
+        String[] columnNames = {"SKU", "Name", "Description", "Weight",
+            "Quantity", "Value"};
+
+        tableModel.setColumnIdentifiers(columnNames);
+
+        JTable displayTable = new JTable(tableModel);
+        JScrollPane displayPane = new JScrollPane(displayTable);
+        JTableHeader headerFont = displayTable.getTableHeader();
+        headerFont.setFont(new Font("Times New Roman", Font.BOLD, 12));
+        
+        // Center contents of the cells       
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        displayTable.getColumn("SKU").setCellRenderer(centerRenderer);
+        displayTable.getColumn("Name").setCellRenderer(centerRenderer);         //we can remove this line to default left
+        displayTable.getColumn("Description").setCellRenderer(centerRenderer);  //we can remove this line to default left 
+        displayTable.getColumn("Weight").setCellRenderer(centerRenderer);
+        displayTable.getColumn("Quantity").setCellRenderer(centerRenderer);
+        displayTable.getColumn("Value").setCellRenderer(centerRenderer);
+        
+
+        //Listeners
+        //Listener for the "Add Item" button
+        addItemButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                int sku = Integer.parseInt(skuField.getText());
+                String name = nameField.getText();
+                String description = descriptionField.getText();
+                double weight = Double.parseDouble(weightField.getText());
+                int quantity = Integer.parseInt(quantityField.getText());
+                double value = Double.parseDouble(valueField.getText());
+
+                Item item = new Item(sku, name, description, weight, quantity, value);
+
+                inventoryMap.put(sku, item);
+
+                tableModel.addRow(new Object[]{item.getSKU(), item.getName(), item.getItemDescription(),
+                    item.getWeight() + " lbs", item.getQuantity(), "$" + item.getValue()});
+
+                // clear the text fields so the user doesn't have to delete the values
+                skuField.setText("");
+                nameField.setText("");
+                descriptionField.setText("");
+                weightField.setText("");
+                quantityField.setText("");
+                valueField.setText("");
+
+                displayTableGlobal = displayTable;
+            }
+        });
+
+        //Listener for "Import from File" button
+        importButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                chooseFile.setDialogTitle("Choose Input File");
+                chooseFile.setFileFilter(filterFile);
+
+                if (chooseFile.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
+                    inventoryMap = new HashMap<>();  // Clear curent inventory
+                    try (Scanner input = new Scanner(chooseFile.getSelectedFile())) {
+                        int sku;
+                        String name;
+                        String description;
+                        double weight;
+                        int quantity;
+                        double value;
+
+                        while (input.hasNextLine()) {
+                            sku = input.nextInt();
+                            name = input.next();
+                            description = input.next();
+                            weight = input.nextDouble();
+                            quantity = input.nextInt();
+                            value = input.nextDouble();
+                            input.nextLine();
+
+                            Item item = new Item(sku, name, description, weight, quantity, value);
+
+                            inventoryMap.put(sku, item);
+
+                            tableModel.addRow(new Object[]{item.getSKU(), item.getName(), item.getItemDescription(),
+                                item.getWeight() + " lbs", item.getQuantity(), "$" + item.getValue()});
+                        }
+                    } catch (IOException exc) {
+
+                    }
+                }
+                displayTableGlobal = displayTable;
+            }
+        });
+
+        // Listener for "Display Inventory" Button
+        displayInventoryButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+
+                JScrollPane scrollPane = new JScrollPane(displayTableGlobal);
+                JFrame frame = new JFrame("PSID Inventory");
+                frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                frame.add(scrollPane);
+                frame.pack();
+                frame.setLocationRelativeTo(null);
+                frame.setVisible(true);
+
+            }
+
+        });
+
+        //Listener for "Export to File" button
+        exportButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                chooseFile.setDialogTitle("Choose Output File Location");
+                chooseFile.setFileFilter(filterFile);
+                LocalDateTime now = LocalDateTime.now();
+
+                if (chooseFile.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
+                    try (FileWriter writeFile = new FileWriter(chooseFile.getSelectedFile() + ".txt")) {
+                        writeFile.write("PSID Inventory Export: " + now + "\n");
+                        writeFile.write("|Sku|\t" + "|Name|\t" + "|Description|\t" + "|Weight|\t" + "|Quantity|\t" + "|Value| \n");
+                        for (Item item : inventoryMap.values()) {
+                            writeFile.write(item.toString());
+                        }
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
 
         // Add Components to Panels
         inputFieldPanel.add(skuLabel);
